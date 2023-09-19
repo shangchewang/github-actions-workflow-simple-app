@@ -26,7 +26,6 @@ permissions:
 jobs:
   buildImage:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -49,15 +48,9 @@ jobs:
           file: ./Dockerfile
 
   deploytoAzure:
-    permissions:
-      action: read
-      content: read
-      id-token: write
-
     runs-on: ubuntu-latest
     environment: Production
     needs: [buildImage]
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -101,4 +94,5 @@ jobs:
             ${{ env.DEPLOYMENT_MANIFEST_PATH }}/hello-world-service.yaml
           images: |
             ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME }}:${{ github.sha }}
+
 
