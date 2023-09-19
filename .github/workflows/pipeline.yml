@@ -47,7 +47,7 @@ jobs:
         with:
           push: true
           tags: ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME }}:${{ github.sha }}
-           tags: ${{ env.AZURE_CONTAINER_REGISTRY }}/test-app:latest
+        # tags: ${{ env.AZURE_CONTAINER_REGISTRY }}/test-app:latest
           file: ./Dockerfile
 
     deploytoAzure:
