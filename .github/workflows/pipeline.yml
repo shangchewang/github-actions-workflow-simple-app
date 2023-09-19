@@ -79,10 +79,11 @@ jobs:
         - name: Kubernetes Set Context
           uses: Azure/k8s-set-context@v3.0
           with:
-            resource-group:${{ env.RESOURCE_GROUP }}
-            cluster-name:${{ env.CLUSTER_NAME }}
-            admin: 'false'
-            user-kubelogin: 'true'
+          resource-group: ${{ env.RESOURCE_GROUP }}
+          cluster-name: ${{ env.CLUSTER_NAME }}
+          admin: 'false'
+          user-kubelogin: 'true'
+
 # Substitute environment variables in a file
         - name: envsubst-action
           uses: danielr1996/envsubst-action@1.1.0
@@ -90,7 +91,7 @@ jobs:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           AZURE_CONTAINER_REGISTRY_NAME: ${{ env.AZURE_CONTAINER_REGISTRY_NAME }}
           AZURE_CONTAINER_REGISTRY: ${{ env.AZURE_CONTAINER_REGISTRY }}
-        with:
+          with:
           # File to run substitutions on
           input: 
             ${{ env.DEPLOYMENT_MANIFEST_PATH }}/hello-world-deployment.yaml
