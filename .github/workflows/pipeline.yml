@@ -1,112 +1,104 @@
 name: Build and Deploy to Azure k8s
 
 env:
-  AZURE_CONTAINER_REGISTRY_NAME: "newregistryACR"  # set this to the name of your Azure Container Registry
+  AZURE_CONTAINER_REGISTRY_NAME: "newregistryACR"
   AZURE_CONTAINER_REGISTRY: "newregistryacr.azurecr.io"
   CONTAINER_NAME: "hello-world"
   RESOURCE_GROUP: "github-cicd-demo"
   CLUSTER_NAME: "aksnewcluster"
   DEPLOYMENT_MANIFEST_PATH: "kubernetes"
 
-# Retrive below secrets from GitHub Actions Secrets
-#  AZURE_TENANT_ID: "secrets"
-#  AZURE_SUBSCRIPTION_ID: "secrets"
-#  AZURE_CLIENT_ID: "secrets"
-#  AZURE_CONTAINER_REGISTRY_PASSWORD: "secrets"
+# Retrieve below secrets from GitHub Actions Secrets
+# AZURE_TENANT_ID: "secrets"
+# AZURE_SUBSCRIPTION_ID: "secrets"
+# AZURE_CLIENT_ID: "secrets"
+# AZURE_CONTAINER_REGISTRY_PASSWORD: "secrets"
 
 on:
- push:
-  branch:["master"]
- workflow_dispatch:
+  push:
+    branches:
+      - "master"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   buildImage:
-    runs-on: ubuntu-latest  
+    runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4.0.0
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Docker Setup Buildx
-      - uses: docker/bake-action@v4.0.0
+        uses: docker/bake-action@v4
 
       - name: Azure Container Registry Login
-      - uses: Azure/docker-login@v1
+        uses: Azure/docker-login@v1
         with:
-          # Container registry username
-          username: ${{ env.AZURE_CONTAINER_REGISTRY_NAME }} 
-          # Container registry password
-          password: ${{ secrets.AZURE_CONTAINER_REGISTRY_PASSWORD }} 
-          # Container registry server url
+          username: ${{ env.AZURE_CONTAINER_REGISTRY_NAME }}
+          password: ${{ secrets.AZURE_CONTAINER_REGISTRY_PASSWORD }}
           login-server: ${{ env.AZURE_CONTAINER_REGISTRY }}
 
       - name: Build and push container image to registry
-      - uses: docker/build-push-action@v5.0.0
+        uses: docker/build-push-action@v5
         with:
           push: true
           tags: ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME }}:${{ github.sha }}
-        # tags: ${{ env.AZURE_CONTAINER_REGISTRY }}/test-app:latest
           file: ./Dockerfile
 
-    deploytoAzure:
-      permissions:
-        action: read
-        content: read
-        id-token: write
+  deploytoAzure:
+    permissions:
+      action: read
+      content: read
+      id-token: write
 
-      runs-on: ubuntu-latest  
-      environment: Production
-      needs: [buildImage]
+    runs-on: ubuntu-latest
+    environment: Production
+    needs: [buildImage]
 
-      step:
-    # Checks out the repository this file is in
-        - uses: actions/checkout@v4.0.0
-    # Logs in with your Azure credentials
-        - name: azure login
-        - uses: azure/login@v1
-          with:
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-    # Use kubelogin to configure your kubeconfig for Azure auth
-        - name: Kube login
-          users: azure/use-kubelogin@v1
-          with: 
+
+      - name: Kube login
+        uses: azure/use-kubelogin@v1
+        with:
           kubelogin-version: 'v0.0.25'
-# Retrieves your Azure Kubernetes Service cluster's kubeconfig file
-        - name: Kubernetes Set Context
-          uses: Azure/k8s-set-context@v3.0
-          with:
+
+      - name: Kubernetes Set Context
+        uses: Azure/k8s-set-context@v3
+        with:
           resource-group: ${{ env.RESOURCE_GROUP }}
           cluster-name: ${{ env.CLUSTER_NAME }}
           admin: 'false'
           user-kubelogin: 'true'
 
-# Substitute environment variables in a file
-        - name: envsubst-action
-          uses: danielr1996/envsubst-action@1.1.0
-          env:
+      - name: Substitute environment variables in a file
+        uses: danielr1996/envsubst-action@1.1
+        env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
           AZURE_CONTAINER_REGISTRY_NAME: ${{ env.AZURE_CONTAINER_REGISTRY_NAME }}
           AZURE_CONTAINER_REGISTRY: ${{ env.AZURE_CONTAINER_REGISTRY }}
-          with:
-          # File to run substitutions on
-          input: 
-            ${{ env.DEPLOYMENT_MANIFEST_PATH }}/hello-world-deployment.yaml
-          # File to write result to
-          output: 
+        with:
+          input: ${{ env.DEPLOYMENT_MANIFEST_PATH }}/hello-world-deployment.yaml
+          output: hello-world-deployment.yaml
+
+      - name: Deploy to Kubernetes cluster
+        uses: Azure/k8s-deploy@v4.9
+        with:
+          action: deploy
+          manifests: |
             hello-world-deployment.yaml
+            ${{ env.DEPLOYMENT_MANIFEST_PATH }}/hello-world-service.yaml
+          images: |
+            ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME }}:${{ github.sha }}
 
-      # Deploys application based on given manifest file
-
-        - name: Deploy to Kubernetes cluster
-          uses: Azure/k8s-deploy@v4.9
-          with:
-           action: deploy
-           manifests: |
-             hello-world-deployment.yaml
-             ${{ env.DEPLOYMENT_MANIFEST_PATH }}/hello-world-service.yaml
-             images: |
-             ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME }}:${{ github.sha }}
