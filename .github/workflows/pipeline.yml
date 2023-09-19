@@ -104,9 +104,9 @@ jobs:
         - name: Deploy to Kubernetes cluster
           uses: Azure/k8s-deploy@v4.9
           with:
-            action: deploy
-            manifests: |
-            hello-world-deployment.yaml
-            ${{ env.DEPLOYMENT_MANIFEST_PATH }}/hello-world-service.yaml
-          images: |
-            ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME }}:${{ github.sha }}
+           action: deploy
+           manifests: |
+             hello-world-deployment.yaml
+             ${{ env.DEPLOYMENT_MANIFEST_PATH }}/hello-world-service.yaml
+             images: |
+             ${{ env.AZURE_CONTAINER_REGISTRY }}/${{ env.CONTAINER_NAME }}:${{ github.sha }}
